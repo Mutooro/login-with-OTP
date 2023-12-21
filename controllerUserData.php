@@ -6,46 +6,93 @@ $name = "";
 $errors = array();
 
 //if user signup button
-if(isset($_POST['signup'])){
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
+
+if (isset($_POST['signup'])) {
     $name = mysqli_real_escape_string($con, $_POST['name']);
     $email = mysqli_real_escape_string($con, $_POST['email']);
     $password = mysqli_real_escape_string($con, $_POST['password']);
     $cpassword = mysqli_real_escape_string($con, $_POST['cpassword']);
-    if($password !== $cpassword){
+
+    if ($password !== $cpassword) {
         $errors['password'] = "Confirm password not matched!";
     }
+
     $email_check = "SELECT * FROM usertable WHERE email = '$email'";
     $res = mysqli_query($con, $email_check);
-    if(mysqli_num_rows($res) > 0){
+
+    if (mysqli_num_rows($res) > 0) {
         $errors['email'] = "Email that you have entered is already exist!";
     }
-    if(count($errors) === 0){
+
+    if (count($errors) === 0) {
         $encpass = password_hash($password, PASSWORD_BCRYPT);
         $code = rand(999999, 111111);
         $status = "notverified";
+
         $insert_data = "INSERT INTO usertable (name, email, password, code, status)
-                        values('$name', '$email', '$encpass', '$code', '$status')";
+                        VALUES ('$name', '$email', '$encpass', '$code', '$status')";
         $data_check = mysqli_query($con, $insert_data);
-        if($data_check){
-            $subject = "Email Verification Code";
-            $message = "Your verification code is $code";
-            $sender = "From: no-reply@testing.gauravkumarofficial.xyz";
-            if(mail($email, $subject, $message, $sender)){
+
+        if ($data_check) {
+            try {
+                // Create a new PHPMailer instance
+                $mail = new PHPMailer(true);
+
+                // Server settings
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.gmail.com'; // Replace with your SMTP server address
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'mutoorom@gmail.com'; // Replace with your SMTP username
+                $mail->Password   = 'yxbq qqvf tzdi wfwg'; // Replace with your SMTP password
+                $mail->SMTPSecure = 'tls';
+                $mail->Port       = 587; // Replace with your SMTP server port
+
+                // Recipients
+                $mail->setFrom('mutoorom@gmail.com', 'Mutooro Lillian');
+                $mail->addAddress($email);
+
+                // Content
+                $mail->isHTML(true);
+                $mail->Subject = 'Email Verification Code';
+                $mail->Body = "
+    <p>Hello $name,</p>
+    <p>Thank you for signing up! To complete the registration process, please enter the verification code below:</p>
+    <p>Verification Code: $code</p>
+    <p><strong>Important:</strong> Do not share this code with anyone for security reasons.</p>
+    <p>If you did not sign up for an account, please ignore this email.</p>
+    <p>Best regards,<br>Daizee Pharmacy </p>
+";
+
+
+                // Send the email
+                $mail->send();
+
+                // Success
                 $info = "We've sent a verification code to your email - $email";
                 $_SESSION['info'] = $info;
                 $_SESSION['email'] = $email;
                 $_SESSION['password'] = $password;
                 header('location: user-otp.php');
                 exit();
-            }else{
+            } catch (Exception $e) {
+                // Error handling
+                error_log("Failed to send email: " . $mail->ErrorInfo);
                 $errors['otp-error'] = "Failed while sending code!";
             }
-        }else{
-            $errors['db-error'] = "Failed while inserting data into database!";
+        } else {
+            $errors['db-error'] = "Failed while inserting data into the database!";
         }
     }
-
 }
+
+
     //if user click verification code submit button
     if(isset($_POST['check'])){
         $_SESSION['info'] = "";
